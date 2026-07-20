@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.venv/
+.venv.*
+.env.*
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.eggs/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE / Editor files
+.vscode/
+*.code-workspace
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Logs and debug files
+*.log
+*.out
+*.err
+
+# Testing
+.tox/
+.nox/
+.coverage
+htmlcov/
+*.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Django-specific
+*.sqlite3
+media/
+staticfiles/
+
+# FastAPI-specific
+instance/
+
+# Environment variables and secrets
+.env
+.env.*
+*.pem
+config.json
+secrets.json
