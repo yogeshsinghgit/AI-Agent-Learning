@@ -14,6 +14,7 @@ from app.domains.dependencies.app_state import AppState
 from app.db.postgres_client import PostgresClient
 from app.db.redis_client import RedisClient
 from app.domains.ai.runtime_dependencies.checkpointer import CheckpointerClient
+from app.domains.ai.llms.client import LLMClient
 
 
 
@@ -40,6 +41,10 @@ async def lifespan(app: FastAPI):
         app_state.redis = RedisClient()
         await app_state.redis.connect()
         logger.success("Redis connected successfully.")
+
+        app_state.llm = LLMClient()
+        await app_state.llm.connect()
+        logger.success("LLM Connected")
 
         app_state.checkpointer = CheckpointerClient(
             postgres=app_state.postgres
