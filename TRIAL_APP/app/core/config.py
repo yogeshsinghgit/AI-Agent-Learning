@@ -92,6 +92,11 @@ class Settings(BaseSettings):
     # open meteo apis
     GEOCODING_URL: str 
     FORECAST_URL: str
+    # open trip map api and constants
+    GEONAME_URL: str
+    RADIUS_URL: str
+
+    DEFAULT_RADIUS_METERS : int 
 
     ####################################################################
     # Computed Properties

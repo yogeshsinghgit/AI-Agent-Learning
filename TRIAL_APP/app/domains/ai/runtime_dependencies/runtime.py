@@ -6,9 +6,18 @@ from app.core.config import settings
 from app.db.redis_client import RedisClient
 
 from app.domains.ai.runtime_dependencies.graph_context import GraphContext
+
+
+from app.integrations.geocoding.providers.open_meteo import OpenMeteoGeocodingProvider
+from app.integrations.geocoding.client import GeocodingClient
+
 from app.integrations.weather.providers.open_meteo import OpenMeteoWeatherProvider
 from app.integrations.weather.client import WeatherClient
 from app.integrations.weather.tool import WeatherTool
+
+from app.integrations.attraction.client import AttractionClient
+from app.integrations.attraction.tool import AttractionTool
+from app.integrations.attraction.providers.open_trip_map import OpenTripMapAttractionProvider
 
 
 @dataclass(slots=True, frozen=True)
@@ -25,13 +34,30 @@ class AgentRuntime:
         """
         Build the execution context passed to LangGraph nodes.
         """
+
+        # instantiate geocode dependencies
+        geocode_provider = OpenMeteoGeocodingProvider()
+        geocoding_client = GeocodingClient(provider=geocode_provider)
+
         # Instantiate weather dependencies
-        provider = OpenMeteoWeatherProvider()
+        provider = OpenMeteoWeatherProvider(geocoding_client=geocoding_client)
         client = WeatherClient(provider=provider)
         weather_tool = WeatherTool(client=client)
 
-        tools = [weather_tool]
-        tool_registry = {weather_tool.name: weather_tool}
+        # Instantiate attraction dependencies
+        provider = OpenTripMapAttractionProvider(
+            api_key=settings.OPEN_TRIP_MAP_API, 
+            geocoding_client=geocoding_client
+        )
+        client = AttractionClient(provider=provider)
+        attraction_tool = AttractionTool(client=client)
+
+        tools = [weather_tool, attraction_tool]
+
+        tool_registry = {
+            weather_tool.name: weather_tool,
+            attraction_tool.name: attraction_tool,
+            }
 
         return GraphContext(
             llm=self.llm.client,

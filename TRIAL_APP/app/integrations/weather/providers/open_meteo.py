@@ -7,6 +7,8 @@ from loguru import logger
 from app.core.config import settings
 from app.core.weather_codes import _WEATHER_CODES
 
+from app.integrations.geocoding.client import GeocodingClient
+
 from app.integrations.weather.exceptions import WeatherProviderError
 from app.integrations.weather.providers.base import WeatherProvider
 from app.integrations.weather.schemas import (
@@ -29,8 +31,10 @@ class OpenMeteoWeatherProvider(WeatherProvider):
 
     def __init__(
         self,
+        geocoding_client: GeocodingClient,
         client: httpx.AsyncClient | None = None,
     ) -> None:
+        self._geocoding_client = geocoding_client
         self._client = client or httpx.AsyncClient(timeout=10.0)
 
     async def get_weather(
@@ -43,14 +47,16 @@ class OpenMeteoWeatherProvider(WeatherProvider):
             query.location,
         )
 
-        location = await self._geocode(query)
+        location = await self._geocoding_client.geocode(
+            query.location, country=query.country
+        )
 
         start_date = query.date_from or date.today()
         end_date = query.date_to or start_date
 
         forecast = await self._get_forecast(
-            latitude=location["latitude"],
-            longitude=location["longitude"],
+            latitude=location.latitude,
+            longitude=location.longitude,
             start_date=start_date,
             end_date=end_date,
         )
@@ -72,41 +78,6 @@ class OpenMeteoWeatherProvider(WeatherProvider):
         Close the underlying HTTP client.
         """
         await self._client.aclose()
-
-    async def _geocode(
-        self,
-        query: WeatherQuery,
-    ) -> dict[str, Any]:
-
-        params = {
-            "name": query.location,
-            "count": 1,
-        }
-
-        try:
-            response = await self._client.get(
-                settings.GEOCODING_URL,
-                params=params,
-            )
-            response.raise_for_status()
-
-        except httpx.HTTPError as exc:
-            logger.exception(
-                "Failed to geocode location '{}'.",
-                query.location,
-            )
-            raise WeatherProviderError(
-                "Unable to resolve the requested location."
-            ) from exc
-
-        results = response.json().get("results")
-
-        if not results:
-            raise WeatherProviderError(
-                f"No location found for '{query.location}'."
-            )
-
-        return results[0]
 
     async def _get_forecast(
         self,
