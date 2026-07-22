@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.weather_codes import _WEATHER_CODES
 
 from app.integrations.weather.exceptions import WeatherProviderError
-from app.integrations.weather.provider import WeatherProvider
+from app.integrations.weather.providers.base import WeatherProvider
 from app.integrations.weather.schemas import (
     DailyWeatherForecast,
     WeatherQuery,
@@ -117,32 +117,48 @@ class OpenMeteoWeatherProvider(WeatherProvider):
         end_date: date,
     ) -> dict[str, Any]:
 
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "timezone": "auto",
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "daily": ",".join(
+                [
+                    "temperature_2m_max",
+                    "temperature_2m_min",
+                    "weather_code",
+                    "precipitation_probability_max",
+                    "wind_speed_10m_max",
+                ]
+            ),
+        }
+
+        logger.info(
+            "Sending forecast request to Open-Meteo: URL={}, params={}",
+            settings.FORECAST_URL,
+            params,
+        )
+
         try:
             response = await self._client.get(
                 settings.FORECAST_URL,
-                params={
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "timezone": "auto",
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat(),
-                    "daily": ",".join(
-                        [
-                            "temperature_2m_max",
-                            "temperature_2m_min",
-                            "weather_code",
-                            "precipitation_probability_max",
-                            "wind_speed_10m_max",
-                        ]
-                    ),
-                },
+                params=params,
             )
+
+            if response.status_code != 200:
+                logger.error(
+                    "Open-Meteo request failed with status {}: {}",
+                    response.status_code,
+                    response.text,
+                )
 
             response.raise_for_status()
 
         except httpx.HTTPError as exc:
             logger.exception(
-                "Failed to fetch forecast from Open-Meteo."
+                "Failed to fetch forecast from Open-Meteo with params: {}",
+                params,
             )
             raise WeatherProviderError(
                 "Unable to fetch weather forecast."

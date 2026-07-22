@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as dt_date
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -20,12 +20,12 @@ class WeatherQuery(BaseModel):
         description="Optional country name used to disambiguate locations with the same name."
     )
 
-    date_from: date | None = Field(
+    date_from: dt_date | None = Field(
         default=None,
         description="Start date of the requested weather forecast."
     )
 
-    date_to: date | None = Field(
+    date_to: dt_date | None = Field(
         default=None,
         description="End date of the requested weather forecast."
     )
@@ -49,7 +49,7 @@ class DailyWeatherForecast(BaseModel):
     Weather forecast for a single calendar day.
     """
 
-    date: date = Field(
+    date: dt_date = Field(
         description="Forecast date."
     )
 

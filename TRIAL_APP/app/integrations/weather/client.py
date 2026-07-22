@@ -1,7 +1,7 @@
 from loguru import logger
 
-from app.capabilities.weather.provider import WeatherProvider
-from app.capabilities.weather.schemas import WeatherQuery, WeatherResult
+from app.integrations.weather.providers.base import WeatherProvider
+from app.integrations.weather.schemas import WeatherQuery, WeatherResult
 
 
 class WeatherClient:
@@ -13,18 +13,23 @@ class WeatherClient:
     def __init__(self, provider: WeatherProvider) -> None:
         self._provider = provider
 
-    async def get_weather(self, location: str) -> WeatherResult:
-        logger.info("Fetching weather for '{}'.", location)
+    async def get_weather(self, query: WeatherQuery | str) -> WeatherResult:
+        if isinstance(query, str):
+            query = WeatherQuery(location=query)
 
-        result = await self._provider.get_current_weather(
-            WeatherQuery(location=location)
-        )
+        logger.info("Fetching weather for '{}'.", query.location)
+
+        result = await self._provider.get_weather(query)
+
+        temp_info = ""
+        if result.forecasts:
+            first = result.forecasts[0]
+            temp_info = f" Min: {first.minimum_temperature_celsius}°C, Max: {first.maximum_temperature_celsius}°C, {first.weather_description}"
 
         logger.success(
-            "Weather fetched for '{}': {}°C, {}.",
+            "Weather fetched for '{}':{}",
             result.location,
-            result.temperature_celsius,
-            result.weather_description,
+            temp_info,
         )
 
         return result

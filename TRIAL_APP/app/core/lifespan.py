@@ -6,6 +6,7 @@ from redis.asyncio import Redis
 
 
 from app.domains.ai.runtime_dependencies.runtime import AgentRuntime
+from app.domains.graph.builder import build_graph
 
 from app.core.config import settings
 from app.core.logging import configure_logging
@@ -63,9 +64,11 @@ async def lifespan(app: FastAPI):
             redis=app_state.redis,
         )
 
-        # app_state.travel_agent = TravelAgent(
-        #     runtime=runtime,
-        # )
+        graph_context = runtime.create_graph_context()
+        app_state.graph = build_graph(
+            context=graph_context,
+            checkpointer=app_state.checkpointer.client,
+        )
 
         app.state.app_state = app_state
 

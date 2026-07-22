@@ -17,5 +17,5 @@ class GraphContext:
 
     llm: BaseChatModel
     redis: Redis
-    # tools: list[BaseTool]
-    # tool_registry: dict[str, BaseTool]
+    tools: list[BaseTool]
+    tool_registry: dict[str, BaseTool]

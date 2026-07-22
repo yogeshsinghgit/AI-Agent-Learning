@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 from app.domains.ai.runtime_dependencies.checkpointer import CheckpointerClient
 from app.db.postgres_client import PostgresClient
@@ -21,6 +22,8 @@ class AppState:
     llm: LLMClient | None = None
 
     checkpointer: CheckpointerClient | None = None
+
+    graph: Any = None
 
     # Future additions:
     # postgres_pool: AsyncConnectionPool | None = None
