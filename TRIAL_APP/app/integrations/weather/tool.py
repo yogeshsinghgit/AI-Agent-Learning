@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 from app.integrations.weather.client import WeatherClient
 from app.integrations.weather.schemas import WeatherQuery
+from app.integrations.geocoding.exceptions import GeocodingError
+from app.integrations.weather.exceptions import WeatherProviderError
 
 
 class WeatherToolInput(BaseModel):
@@ -19,7 +21,10 @@ class WeatherToolInput(BaseModel):
 
     country: str | None = Field(
         default=None,
-        description="Optional country name used to disambiguate locations."
+        description=(
+            "ISO 3166-1 alpha-2 country code ONLY, e.g. 'IN' for India, "
+            "'FR' for France. Never use the full country name."
+        ),
     )
 
     date_from: date | None = Field(
@@ -81,6 +86,12 @@ class WeatherTool(BaseTool):
             date_to=date_to,
         )
 
-        result = await self.client.get_weather(query)
+        try:
+            result = await self.client.get_weather(query)
+            return result.model_dump_json(indent=2)
 
-        return result.model_dump_json(indent=2)
+        except (WeatherProviderError, GeocodingError) as exc:
+            return f"Could not fetch weather: {exc}"
+
+
+        

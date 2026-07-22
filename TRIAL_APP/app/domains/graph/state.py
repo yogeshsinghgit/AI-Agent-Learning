@@ -1,22 +1,38 @@
+from typing import TypedDict
 from langgraph.graph import MessagesState
+
+
+REQUIRED_TRIP_FIELDS = ["destination", "date_from", "date_to",]
+
+class TripPreferences(TypedDict, total=False):
+    """
+    Trip-planning details collected incrementally from the
+    conversation. All fields start unset and get filled in as the
+    user provides them across turns.
+    """
+
+    destination: str | None  # City or place name only, e.g. 'Delhi'
+    country: str | None      # ISO country code preferred, e.g. 'IN'
+    date_from: str | None    # YYYY-MM-DD
+    date_to: str | None      # YYYY-MM-DD
+    preferences: str | None  # Free-text, e.g. 'budget travel', 'family-friendly'
+
 
 class AgentState(MessagesState):
     """
     Shared state flowing through the LangGraph execution.
 
     MessagesState already provides:
-        - messages
+        - messages (with the add_messages reducer)
 
-    We extend it with application-specific state required by
-    our workflow.
+    Extended with application-specific state required by our
+    workflow.
 
-    # Stored as a plain dict (PlannerDecision.model_dump(mode="json")),
-    # never as the Pydantic model itself. LangGraph's Postgres
-    # checkpointer serializes state via msgpack, which only safely
-    # round-trips primitives/dicts/lists — custom types (including
-    # the PlannerIntent enum inside PlannerDecision) require an
-    # unregistered-type fallback that LangGraph has flagged for
-    # removal. Reconstruct the typed PlannerDecision where it's
-    # actually needed (see chatbot_node.py) instead of persisting it.
+    Note: trip_preferences has no reducer, so any node that updates
+    it must merge with the existing dict itself (read old state,
+    merge in newly extracted values, return the full merged dict) —
+    otherwise returning a partial dict will overwrite previously
+    collected fields.
     """
-    pass
+
+    trip_preferences: TripPreferences
