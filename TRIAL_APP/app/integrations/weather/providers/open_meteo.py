@@ -127,12 +127,10 @@ class OpenMeteoWeatherProvider(WeatherProvider):
             response.raise_for_status()
 
         except httpx.HTTPError as exc:
-            logger.exception(
-                "Failed to fetch forecast from Open-Meteo with params: {}",
-                params,
-            )
+            reason = response.json().get("reason", str(exc))
+            logger.error("Open-Meteo request failed with status {}: {}", response.status_code, reason)
             raise WeatherProviderError(
-                "Unable to fetch weather forecast."
+                f"Weather data is not available for that date range: {reason}"
             ) from exc
 
         return response.json()
@@ -168,8 +166,8 @@ class OpenMeteoWeatherProvider(WeatherProvider):
             )
 
         return WeatherResult(
-            location=location["name"],
-            latitude=location["latitude"],
-            longitude=location["longitude"],
+            location=location.name,
+            latitude=location.latitude,
+            longitude=location.longitude,
             forecasts=forecasts,
         )

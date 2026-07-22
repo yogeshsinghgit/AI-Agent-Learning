@@ -31,6 +31,7 @@ class AgentNode:
                 f"You are a helpful travel assistant. "
                 f"Today's date is {today}. "
                 "Use this date as the reference for any relative date requests (e.g. tomorrow, next week, yesterday)."
+                "When planning a trip that spans multiple days, use both the weather tool and the attraction tool to base your itinerary on real, current data rather than general knowledge."
             )
         )
         messages = [system_message] + list(state["messages"])

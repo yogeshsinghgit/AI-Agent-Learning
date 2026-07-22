@@ -34,6 +34,7 @@ class AttractionTool(BaseTool):
     description: str = (
         "Find tourist attractions, landmarks, and points of interest "
         "near a city or destination."
+        "Always use this tool to find real attractions — do not rely on your own knowledge, as this returns verified, current data."
     )
     args_schema: Type[BaseModel] = AttractionToolInput
 
