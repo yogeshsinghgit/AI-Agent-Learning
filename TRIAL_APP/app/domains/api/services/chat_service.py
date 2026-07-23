@@ -42,5 +42,5 @@ class ChatService:
             return final_message.content
 
         except Exception as exc:
-            logger.exception("ChatService: Error invoking agent graph.")
+            logger.error("ChatService: Error invoking agent graph.")
             raise exc

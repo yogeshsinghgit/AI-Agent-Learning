@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
         yield
 
     except Exception as exc:
-        logger.exception(f"Application startup failed: {exc}")
+        logger.error(f"Application startup failed: {exc}")
         raise
 
     finally:

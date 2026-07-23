@@ -1,11 +1,13 @@
 from typing import Any
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
+from langchain_core.messages import trim_messages
 from loguru import logger
 
 from app.domains.ai.runtime_dependencies.graph_context import GraphContext
 
 from app.domains.graph.nodes.preferences import ExtractPreferencesNode
+from app.domains.ai.utils.token_counter_helper import token_counter
 from app.domains.graph.state import AgentState, REQUIRED_TRIP_FIELDS
 
 
@@ -30,7 +32,11 @@ class AgentNode:
         today = datetime.date.today().isoformat()
         preferences = state.get("trip_preferences", {}) or {}
         missing = [f for f in REQUIRED_TRIP_FIELDS if not preferences.get(f)]
-        if missing:
+
+        if not preferences:
+            trip_instruction = ""
+
+        elif missing:
             trip_instruction = (
                 f"The user wants to plan a trip. Preferences collected so "
                 f"far: {preferences}. Still missing: {', '.join(missing)}. "
@@ -46,14 +52,25 @@ class AgentNode:
 
         system_message = SystemMessage(
             content=(
-                f"You are a helpful travel assistant. "
-                f"Today's date is {today}. "
-                "Use this date as the reference for any relative date requests (e.g. tomorrow, next week, yesterday)."
-                f"{trip_instruction}"
-                "When planning a trip that spans multiple days, use both the weather tool and the attraction tool to base your itinerary on real, current data rather than general knowledge."
+                "You are a helpful travel assistant. "
+                f"Today's date is {today}. Use this date as the reference for "
+                "any relative date requests (e.g. tomorrow, next week, "
+                "yesterday). "
+                f"{trip_instruction} "
+                "When planning a trip that spans multiple days, use both the "
+                "weather tool and the attraction tool to base your itinerary "
+                "on real, current data rather than general knowledge."
             )
         )
-        messages = [system_message] + list(state["messages"])
+        trimmed = trim_messages(
+            state["messages"],
+            max_tokens=4000,          # tune to your model's context window
+            strategy="last",           # keep most recent messages
+            token_counter=token_counter,  # uses the model's own tokenizer
+            include_system=True,
+            start_on="human",          # avoid cutting mid tool-call/response pair
+        )
+        messages = [system_message] + list(trimmed)
         
         response = await self._model.ainvoke(messages)
         return {"messages": [response]}
