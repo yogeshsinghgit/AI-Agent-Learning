@@ -7,6 +7,10 @@ from loguru import logger
 from app.domains.ai.runtime_dependencies.graph_context import GraphContext
 
 from app.domains.graph.nodes.preferences import ExtractPreferencesNode
+from app.domains.graph.nodes.validate_tool_calls import (
+    ValidateToolCallsNode,
+    should_execute_tools
+)
 from app.domains.ai.utils.token_counter_helper import token_counter
 from app.domains.graph.state import AgentState, REQUIRED_TRIP_FIELDS
 
@@ -38,10 +42,28 @@ class AgentNode:
 
         elif missing:
             trip_instruction = (
-                f"The user wants to plan a trip. Preferences collected so "
-                f"far: {preferences}. Still missing: {', '.join(missing)}. "
-                "Ask the user specifically for the missing details before "
-                "calling any tools. Do not guess or assume them."
+                f"""
+                Trip preferences collected so far:
+                {preferences}
+
+                Missing:
+                {missing}
+
+                Do NOT ask for all missing fields immediately.
+
+                First answer every part of the user's request that can be
+                completed with the currently available information.
+
+                Only ask for additional information when it is required to
+                perform the next requested action or tool call.
+
+                For example:
+
+                - Listing attractions only requires a destination.
+                - Weather requires travel dates.
+                - Hotel search requires travel dates.
+                - Full itinerary planning requires complete trip details.
+                """
             )
         else:
             trip_instruction = (
@@ -99,6 +121,7 @@ def build_graph(context: GraphContext, checkpointer: Any) -> Any:
     # Add agent node and tool execution node
     workflow.add_node("extract_preferences", ExtractPreferencesNode(context))
     workflow.add_node("agent", AgentNode(context))
+    workflow.add_node("validate_tool_calls", ValidateToolCallsNode())
     workflow.add_node("tools", ToolNode(context.tools))
 
     # Add routing
@@ -109,10 +132,20 @@ def build_graph(context: GraphContext, checkpointer: Any) -> Any:
         "agent",
         should_continue,
         {
-            "tools": "tools",
+            "tools": "validate_tool_calls",
             END: END,
         },
     )
+
+    workflow.add_conditional_edges(
+        "validate_tool_calls",
+        should_execute_tools,
+        {
+            "tools": "tools",
+            "agent": "agent",
+        },
+    )
+    
     workflow.add_edge("tools", "agent")
 
     # Compile the graph with checkpointer
