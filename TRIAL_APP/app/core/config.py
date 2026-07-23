@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     GEONAME_URL: str
     RADIUS_URL: str
 
+    # hotel search hotelbeds config:
+    HOTELBEDS_API_KEY: str
+    HOTELBEDS_SECRET: str
+    HOTEL_BEDS_HOTEL_SEARCH_URL: str
+
     DEFAULT_RADIUS_METERS : int 
 
     ####################################################################

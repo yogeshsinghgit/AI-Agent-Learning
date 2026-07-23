@@ -3,6 +3,7 @@ from langgraph.graph import MessagesState
 
 
 REQUIRED_TRIP_FIELDS = ["destination", "date_from", "date_to",]
+MAX_TOOL_ATTEMPTS_PER_TURN = 4
 
 class TripPreferences(TypedDict, total=False):
     """
@@ -36,3 +37,4 @@ class AgentState(MessagesState):
     """
 
     trip_preferences: TripPreferences
+    tool_attempts: int  # reset each turn by ExtractPreferencesNode

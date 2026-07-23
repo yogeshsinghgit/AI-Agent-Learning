@@ -1,3 +1,5 @@
+import datetime
+
 from loguru import logger
 from langchain_core.messages import trim_messages
 from app.domains.ai.runtime_dependencies.graph_context import GraphContext
@@ -19,15 +21,25 @@ class ExtractPreferencesNode:
     async def __call__(self, state: AgentState) -> dict:
         logger.info("ExtractPreferencesNode: Extracting trip preferences...")
 
+        today = datetime.date.today().isoformat()
+        date_context = SystemMessage(
+            content=(
+                f"Today's date is {today}. When the user gives a partial "
+                "date with no year (e.g. 'Aug 1'), assume the current or "
+                "next occurrence of that date relative to today — never "
+                "a past year."
+            )
+        )
+
         trimmed = trim_messages(
             state["messages"],
-            max_tokens=4000,          # tune to your model's context window
+            max_tokens=2500,          # tune to your model's context window
             strategy="last",           # keep most recent messages
             token_counter=token_counter,  # uses the model's own tokenizer
             include_system=True,
             start_on="human",          # avoid cutting mid tool-call/response pair
         )
-        messages = list(trimmed)
+        messages = [date_context, *trimmed]
 
         extracted = await self._extractor.ainvoke(messages)
 
@@ -39,4 +51,7 @@ class ExtractPreferencesNode:
 
         logger.info("ExtractPreferencesNode: Merged preferences: {}", merged)
 
-        return {"trip_preferences": merged}
+        return {
+            "trip_preferences": merged,
+            "tool_attempts": 0, # # reset each turn 
+            }

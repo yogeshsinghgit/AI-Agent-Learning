@@ -19,6 +19,10 @@ from app.integrations.attraction.client import AttractionClient
 from app.integrations.attraction.tool import AttractionTool
 from app.integrations.attraction.providers.open_trip_map import OpenTripMapAttractionProvider
 
+from app.integrations.hotel.client import HotelClient
+from app.integrations.hotel.tool import HotelTool
+from app.integrations.hotel.providers.hotel_beds import HotelbedsHotelProvider
+
 
 @dataclass(slots=True, frozen=True)
 class AgentRuntime:
@@ -52,11 +56,22 @@ class AgentRuntime:
         client = AttractionClient(provider=provider)
         attraction_tool = AttractionTool(client=client)
 
-        tools = [weather_tool, attraction_tool]
+        # Instantiate Hotel search dependencies
+
+        provider = HotelbedsHotelProvider(
+            api_key=settings.HOTELBEDS_API_KEY,
+            secret=settings.HOTELBEDS_SECRET,
+            geocoding_client=geocoding_client
+        )
+        client = HotelClient(provider)
+        hotel_tool = HotelTool(client = client)
+
+        tools = [weather_tool, attraction_tool, hotel_tool]
 
         tool_registry = {
             weather_tool.name: weather_tool,
             attraction_tool.name: attraction_tool,
+            hotel_tool.name: hotel_tool
             }
 
         return GraphContext(

@@ -2,6 +2,7 @@ import httpx
 
 from app.core.config import settings
 from app.integrations.geocoding.base import GeocodingProvider
+from app.integrations.geocoding.aliases import resolve_alias
 from app.integrations.geocoding.exceptions import GeocodingError
 from app.integrations.geocoding.schemas import GeocodeQuery, GeocodeResult
 
@@ -16,7 +17,8 @@ class OpenMeteoGeocodingProvider(GeocodingProvider):
         self._client = client or httpx.AsyncClient(timeout=10.0)
 
     async def geocode(self, query: GeocodeQuery) -> GeocodeResult:
-        params = {"name": query.location, "count": 1}
+        location = resolve_alias(query.location)
+        params = {"name": location, "count": 1}
 
         if query.country:
             params["countryCode"] = query.country

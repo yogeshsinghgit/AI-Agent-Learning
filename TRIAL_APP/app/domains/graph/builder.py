@@ -1,8 +1,10 @@
 from typing import Any
+import datetime
+from loguru import logger
+
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import trim_messages
-from loguru import logger
 
 from app.domains.ai.runtime_dependencies.graph_context import GraphContext
 
@@ -11,11 +13,10 @@ from app.domains.graph.nodes.validate_tool_calls import (
     ValidateToolCallsNode,
     should_execute_tools
 )
+
 from app.domains.ai.utils.token_counter_helper import token_counter
-from app.domains.graph.state import AgentState, REQUIRED_TRIP_FIELDS
+from app.domains.graph.state import AgentState, REQUIRED_TRIP_FIELDS, MAX_TOOL_ATTEMPTS_PER_TURN
 
-
-import datetime
 from langchain_core.messages import SystemMessage
 
 
@@ -68,7 +69,7 @@ class AgentNode:
         else:
             trip_instruction = (
                 f"Trip preferences are complete: {preferences}. Use the "
-                "weather and attraction tools to plan based on real data, "
+                "weather, hotels and attraction tools to plan based on real data, "
                 "not just your own knowledge."
             )
 
@@ -82,20 +83,34 @@ class AgentNode:
                 "When planning a trip that spans multiple days, use both the "
                 "weather tool and the attraction tool to base your itinerary "
                 "on real, current data rather than general knowledge."
+                """
+                Tool usage rules:
+                    - After a tool returns successfully, use its results to answer the user.
+                    - Never call the same tool again with identical arguments.
+                    - Only call the same tool again if:
+                    - the tool reported an error,
+                    - required information is missing,
+                    - or the user explicitly requested another search.
+                """
             )
         )
         trimmed = trim_messages(
             state["messages"],
-            max_tokens=4000,          # tune to your model's context window
+            max_tokens=2500,          # tune to your model's context window
             strategy="last",           # keep most recent messages
             token_counter=token_counter,  # uses the model's own tokenizer
             include_system=True,
             start_on="human",          # avoid cutting mid tool-call/response pair
         )
         messages = [system_message] + list(trimmed)
-        
+        attempts = state.get("tool_attempts", 0) + len(response.tool_calls or [])
+
         response = await self._model.ainvoke(messages)
-        return {"messages": [response]}
+        
+        return {
+            "messages": [response],
+            "tool_attempts": attempts
+            }
 
 
 def should_continue(state: AgentState) -> str:
@@ -105,7 +120,10 @@ def should_continue(state: AgentState) -> str:
     last_message = state["messages"][-1]
     logger.info(f"Last Message : {last_message}")
     if getattr(last_message, "tool_calls", None):
-        logger.info("should_continue: Routing to tools node")
+        if state.get("tool_attempts", 0) >= MAX_TOOL_ATTEMPTS_PER_TURN:
+            logger.warning("should_continue: Max tool attempts reached, ending.")
+            return END
+        # logger.info("should_continue: Routing to tools node")
         return "tools"
     logger.info("should_continue: Routing to end")
     return END
